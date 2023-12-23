@@ -4,3 +4,4 @@
 ## 修改部分:
 ### 添加BASS_AAC来播放ACC,MPEG-4音频
 ### 修改tags无法在Linux使用问题
+### 增加ChannelGetAttribute和ChannelSetAttribute方法以便单独获取&设置音效的音量
