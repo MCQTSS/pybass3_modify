@@ -3,36 +3,42 @@ import dataclasses
 import platform
 import ctypes
 import sys
-
+import os
 from .codes import errors
 from .codes import config
 from .codes.errors import get_description
 from .structs.info import BASS_INFO, BASS_DEVICEINFO
+from .datatypes import QWORD, HSTREAM, HANDLE
 
 BASSVERSION = 0x204
 BASSVERSIONTEXT = '2.4'
 
 HERE = Path(__file__).parent
-BASS_DLL = HERE / "vendor" / "bass.dll"
-BASS_so = HERE / "vendor" / "libbass.so"
-aac_DLL = HERE / "vendor" / "bass_aac"
-aac_so = HERE / "vendor" / "libbass_aac.so"
+BASS_DLL = (HERE / "vendor" / "bass.dll").as_posix()
+BASS_so = (HERE / "vendor" / "libbass.so").as_posix()
+aac_DLL = (HERE / "vendor" / "bass_aac.dll").as_posix()
+aac_so = (HERE / "vendor" / "libbass_aac.so").as_posix()
+if not os.path.exists(BASS_DLL) and not os.path.exists(BASS_so):
+	BASS_DLL = "./bass.dll"
+	BASS_so = "./libbass.so"
+	aac_DLL = "./bass_aac.dll"
+	aac_so = "./libbass_aac.so"
 # Carry over from pybass, TODO remove?
 if sys.hexversion < 0x02060000:
 	ctypes.c_bool = ctypes.c_byte
 
 if platform.system().lower() == "windows":
-	bass_module = ctypes.WinDLL(BASS_DLL.as_posix())
+	bass_module = ctypes.WinDLL(BASS_DLL)
 	func_type = ctypes.WINFUNCTYPE
-	bass_aac_module = ctypes.WinDLL(aac_DLL.as_posix())
+	bass_aac_module = ctypes.WinDLL(aac_DLL)
 	func_aac_type = ctypes.WINFUNCTYPE
 else:
 	bass_module = ctypes.CDLL(
-		BASS_so.as_posix(),
+		BASS_so,
 		mode=ctypes.RTLD_GLOBAL)
 	func_type = ctypes.CFUNCTYPE
 	bass_aac_module = ctypes.CDLL(
-		aac_so.as_posix(),
+		aac_so,
 		mode=ctypes.RTLD_GLOBAL)
 	func_aac_type = ctypes.CFUNCTYPE
 
@@ -71,6 +77,16 @@ BASS_SetDevice = func_type(ctypes.c_bool, ctypes.c_ulong)(('BASS_SetDevice', bas
 BASS_GetDeviceInfo = func_type(ctypes.c_bool, ctypes.c_ulong, ctypes.POINTER(BASS_DEVICEINFO))(
 	('BASS_GetDeviceInfo', bass_module))
 
+BASS_ChannelGetAttribute = func_type(
+	ctypes.c_bool,
+	ctypes.c_ulong,
+	ctypes.c_ulong,
+	ctypes.POINTER(ctypes.c_float))(('BASS_ChannelGetAttribute', bass_module))
+BASS_ChannelSetAttribute = func_type(
+	ctypes.c_bool,
+	ctypes.c_ulong,
+	ctypes.c_ulong,
+	ctypes.c_float)(('BASS_ChannelSetAttribute', bass_module))
 # Master play controls
 BASS_Pause = func_type(ctypes.c_bool)(("BASS_Pause", bass_module))
 BASS_Start = func_type(ctypes.c_bool)(("BASS_Start", bass_module))
@@ -211,6 +227,24 @@ class Bass:
 
 		"""
 		BASS_SetVolume(level)
+
+	@classmethod
+	def ChannelGetAttribute(cls, handle: HANDLE):
+		if handle is None:
+			return
+		value = ctypes.c_float(0.0)
+		BASS_ChannelGetAttribute(handle, 2, ctypes.byref(value))
+		return value.value
+
+	@classmethod
+	def ChannelSetAttribute(cls, handle: HANDLE, value):
+		if handle is None:
+			return
+		if value > 1:
+			value = 1
+		elif value < 0:
+			value = 0
+		return BASS_ChannelSetAttribute(handle, 2, value)
 
 	@classmethod
 	def GetVolumePerc(cls):
