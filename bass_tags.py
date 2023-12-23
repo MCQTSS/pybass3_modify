@@ -2,18 +2,21 @@ import ctypes
 import platform
 import pathlib
 from collections import defaultdict
-
+import os
 from .datatypes import HANDLE
 
 HERE = pathlib.Path(__file__).parent
-TAG_FILE = HERE / "vendor" / "tags"
-TAG_FILE_linux = HERE / "vendor" / "libtags.so"
+TAG_FILE = (HERE / "vendor" / "tags.dll").as_posix()
+TAG_FILE_linux = (HERE / "vendor" / "libtags.so").as_posix()
+if not os.path.exists(TAG_FILE) and not os.path.exists(TAG_FILE_linux):
+	TAG_FILE = "./tags.dll"
+	TAG_FILE_linux = "./libtags.so"
 
 if platform.system().lower() == "windows":
-	tags_module = ctypes.WinDLL(TAG_FILE.as_posix())
+	tags_module = ctypes.WinDLL(TAG_FILE)
 	func_type = ctypes.WINFUNCTYPE
 else:
-	tags_module = ctypes.CDLL(TAG_FILE_linux.as_posix())
+	tags_module = ctypes.CDLL(TAG_FILE_linux)
 	func_type = ctypes.CFUNCTYPE
 
 TAG_VERSION = 18
